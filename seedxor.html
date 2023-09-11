@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Seed XOR</title>
+</head>
+<body>
+    <h1>Seed XOR</h1>
+    <h2>Calculate the XOR of two BIP39 seed phrases</h2>
+    <p>by SpaceHodler@stacker.news</p>
+    <h3>How to use:</h3>
+    <ul>
+      <li><font color="red">ONLY EVER USE IT OFFLINE!</font> Save this file and <a href="https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt">the BIP39 word list</a> locally, e.g. on a USB stick.</li>
+      <li>Boot an OS on a machine that's not connected to the internet. If it's not Tails and can leave a trace, wipe the drive with the OS afterwards, while still offline.</li>
+      <li>Open this file in a browser.</li>
+      <li>Click on "Choose file" and open the BIP39 word list. It will be verified against the expected checksum.</li>
+      <li>Enter two seed phrases and click "XOR". It works with an arbitrary number of seed words (12, 24, ...).</li>
+      <li>A xor B will be displayed in green. You can verify it by replacing one of the inputs with it and XOR-ing again; the result should be the same as the replaced input.
+    </ul>
+    <h3>Use it at your own risk!</h3>
+    
+    <p><input type="file" id="fileInput"></p>
+    
+    <p>
+    <label for="input1">Seed Phrase A:</label>
+    <input type="text" id="input1" placeholder="Enter text for seed phrase A" style="width: 100%;"><br>
+    </p>
+    
+    <p>
+    <label for="input2">Seed Phrase B:</label>
+    <input type="text" id="input2" placeholder="Enter text for seed phrase B" style="width: 100%;"><br>
+    </p>
+    
+    <button onclick="xorSeedPhrases()">XOR</button>
+
+    <p> <div id="result" > </div> <div id="xorred" > </div> </p>
+    
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const expectedChecksum = 'ad90bf3beb7b0eb7e5acd74727dc0da96e0a280a258354e7293fb7e211ac03db';
+        
+        const wordNum = {};
+        const numWord = {};
+        let num = 0;
+        const wordList = [];
+        
+        fileInput.addEventListener('change', function() {
+          const selectedFile = fileInput.files[0];
+
+          if (selectedFile) {
+            const reader = new FileReader();
+
+            reader.onload = function(event) {
+              const fileContents = event.target.result;
+              fileContents.split(/\n/).forEach((element) => {
+                word = element.trim();
+                if (word.length > 0 ) {
+                  wordList.push(word);
+                }
+              });
+              
+              calculateChecksum(wordList)
+                .then(checksum => {
+                if (checksum !== expectedChecksum) {
+                  throw new Error(`Incorrect checksum for the word list fetched from the github repo!`);
+                }
+                })
+                .catch(error => console.error(`Error calculating word list checksum: ${error}`));
+    
+              wordList.forEach((word) => {
+                wordNum[word] = num;
+                numWord[num] = word;
+                num++;
+              });
+            };
+
+            reader.readAsText(selectedFile);
+          }
+        });
+    
+        function calculateChecksum(strings) {
+          // Convert the array of strings to a single string
+          const concatenatedString = strings.join('');
+
+          // Use TextEncoder to convert the string to bytes in UTF-8 format
+          const encoder = new TextEncoder();
+          const data = encoder.encode(concatenatedString);
+
+          // Calculate the SHA-256 checksum
+          return crypto.subtle.digest('SHA-256', data)
+            .then(hashBuffer => {
+              // Convert the hash result to a hexadecimal string
+              const checksum = Array.from(new Uint8Array(hashBuffer))
+                .map(byte => byte.toString(16).padStart(2, '0'))
+                .join('');
+              return checksum;
+            });
+        }
+        
+        function xorSeedPhrases() {
+          document.getElementById("xorred").textContent = '';
+          if (num == 0) {
+            document.getElementById("result").textContent = 'BIP39 word list not loaded!';
+            return;
+          }
+        
+          var input1 = document.getElementById("input1").value.trim().split(/\s+/);
+          var input2 = document.getElementById("input2").value.trim().split(/\s+/);
+          
+          var result = '';
+          if (input1.length != input2.length) {
+            document.getElementById("result").textContent = 'A and B must have the same number of words!';
+            return;
+          }
+          
+          var result = [];
+          for (let i = 0; i < input1.length; i++) {
+            w1 = wordNum[input1[i]];
+            w2 = wordNum[input2[i]];
+            if (w1 === undefined) {
+              document.getElementById("result").textContent = input1[i] + ' is not a BIP39 word!';
+              return;
+            }
+            if (w2 === undefined) {
+              document.getElementById("result").textContent = input2[i] + ' is not a BIP39 word!';
+              return;
+            }
+            var xor = w1 ^ w2;
+            result.push(numWord[xor]);
+            document.getElementById("result").textContent = 'A xor B:';
+            document.getElementById("xorred").style = "color: green; font-weight: bold;"
+            document.getElementById("xorred").textContent = result.join(' ');
+          }
+        }
+    </script>
+</body>
+</html>
